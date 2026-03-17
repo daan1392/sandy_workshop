@@ -3,7 +3,7 @@
 ############################################
 FROM python:3.11-slim AS builder
 
-# Install build tools
+# Install build tools for NJOY + OpenMC
 RUN apt-get update && apt-get install -y \
     build-essential \
     gfortran \
@@ -42,17 +42,17 @@ RUN cd openmc && pip install .
 ############################################
 FROM mcr.microsoft.com/devcontainers/base:bookworm
 
-# Environment variables
+# Environment configuration
 ARG NB_USER=vscode
 ARG NB_UID=1000
+
 ENV USER=${NB_USER} \
     HOME=/home/${NB_USER} \
     VIRTUAL_ENV=/opt/venv \
-    PATH="$VIRTUAL_ENV/bin:$PATH" \
-    NJOY=/usr/local/bin/njoy \
-    LD_LIBRARY_PATH=/usr/local/lib:${LD_LIBRARY_PATH}
+    PATH="/opt/venv/bin:${PATH}" \
+    LD_LIBRARY_PATH="/usr/local/lib:${LD_LIBRARY_PATH}"
 
-# Install runtime dependencies
+# Install runtime dependencies + SciPy build deps
 RUN apt-get update && apt-get install -y --no-install-recommends \
     python3-pip \
     python3-venv \
@@ -60,45 +60,52 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     cmake \
     gfortran \
     g++ \
+    build-essential \
     libhdf5-dev \
     libhdf5-serial-dev \
+    hdf5-tools \
+    libatlas-base-dev \
+    liblapack-dev \
+    libopenblas-dev \
     mpich \
     wget \
     ca-certificates \
-    libgomp1 \
-    libquadmath0 \
-    libstdc++6 \
-    hdf5-tools \
     && apt-get clean && rm -rf /var/lib/apt/lists/*
 
-# Create Python virtual environment and install packages
+############################################
+# Python venv + Scientific Stack
+############################################
 RUN python3 -m venv $VIRTUAL_ENV \
- && pip install --no-cache-dir --upgrade pip setuptools wheel \
- && pip install --no-cache-dir ipykernel jupyterlab \
- && pip install --no-cache-dir numpy scipy matplotlib pandas lxml h5py \
- && pip install --no-cache-dir sandy serpentTools seaborn scikit-learn \
- # Register Sandy kernel for Jupyter
- && python3 -m ipykernel install --name "sandy" --display-name "Python (Sandy)"
+ && $VIRTUAL_ENV/bin/pip install --no-cache-dir --upgrade pip setuptools wheel \
+ && $VIRTUAL_ENV/bin/pip install --no-cache-dir ipykernel jupyterlab \
+ && $VIRTUAL_ENV/bin/pip install --no-cache-dir numpy scipy matplotlib pandas lxml h5py \
+ && $VIRTUAL_ENV/bin/pip install --no-cache-dir sandy serpentTools seaborn scikit-learn \
+ && $VIRTUAL_ENV/bin/python -m ipykernel install \
+        --name "sandy" \
+        --display-name "Python (Sandy)"
 
-# Copy OpenMC binaries + libraries from builder
+############################################
+# Install NJOY + OpenMC from builder stage
+############################################
 COPY --from=builder /openmc/build/bin/openmc /usr/local/bin/openmc
 COPY --from=builder /openmc/build/lib /usr/local/lib
 COPY --from=builder /openmc /usr/local/lib/python3.11/site-packages/openmc
+
 COPY --from=builder /NJOY2016/build/njoy /usr/local/bin/njoy
 COPY --from=builder /NJOY2016/build/libnjoy.so /usr/local/lib/
 
-# Prepare workspace
+############################################
+# Permissions + User
+############################################
 WORKDIR ${HOME}
-
-# Ensure permissions
 RUN chown -R ${NB_UID}:${NB_UID} /opt/venv ${HOME}
 
-# Switch to non-root user
 USER ${NB_USER}
 
-# Expose Jupyter port
+############################################
+# Jupyter configuration
+############################################
 ENV PORT=8888
 EXPOSE 8888
 
-# Default command for VS Code devcontainer / Codespaces
 CMD ["jupyter", "lab", "--notebook-dir=/home/vscode/", "--port=8888", "--no-browser", "--ip=0.0.0.0"]
