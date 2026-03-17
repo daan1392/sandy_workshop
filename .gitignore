@@ -1,0 +1,37 @@
+# openmc files
+*.xml
+tallies.out
+*.h5
+
+venv/
+
+# DAGMC files
+*.h5m
+
+# Cubit files
+*.trelis
+*.jou
+*.log
+*.cub
+
+# Python library files
+*.so
+
+# Paraview files
+*.vtk
+*.vtp
+*.pvtp
+*.vti
+
+*.ppm
+
+__pycache__/
+
+.ipynb_checkpoints/
+
+# CAD files
+*.brep
+*.stl
+*.stp
+*.svg
+*.png
