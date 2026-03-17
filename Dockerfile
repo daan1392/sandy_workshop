@@ -52,7 +52,7 @@ ENV USER=${NB_USER} \
     NJOY=/usr/local/bin/njoy \
     LD_LIBRARY_PATH=/usr/local/lib:${LD_LIBRARY_PATH}
 
-# Install runtime and Python dependencies
+# Install runtime dependencies
 RUN apt-get update && apt-get install -y --no-install-recommends \
     python3-pip \
     python3-venv \
@@ -71,12 +71,14 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     hdf5-tools \
     && apt-get clean && rm -rf /var/lib/apt/lists/*
 
-# Create Python virtual environment
+# Create Python virtual environment and install packages
 RUN python3 -m venv $VIRTUAL_ENV \
  && pip install --no-cache-dir --upgrade pip setuptools wheel \
  && pip install --no-cache-dir ipykernel jupyterlab \
  && pip install --no-cache-dir numpy scipy matplotlib pandas lxml h5py \
- && pip install --no-cache-dir sandy serpentTools seaborn scikit-learn
+ && pip install --no-cache-dir sandy serpentTools seaborn scikit-learn \
+ # Register Sandy kernel for Jupyter
+ && python3 -m ipykernel install --name "sandy" --display-name "Python (Sandy)"
 
 # Copy OpenMC binaries + libraries from builder
 COPY --from=builder /openmc/build/bin/openmc /usr/local/bin/openmc
@@ -84,9 +86,6 @@ COPY --from=builder /openmc/build/lib /usr/local/lib
 COPY --from=builder /openmc /usr/local/lib/python3.11/site-packages/openmc
 COPY --from=builder /NJOY2016/build/njoy /usr/local/bin/njoy
 COPY --from=builder /NJOY2016/build/libnjoy.so /usr/local/lib/
-
-# Register OpenMC kernel for Jupyter
-RUN python3 -m ipykernel install --name "openmc" --display-name "Python (OpenMC)"
 
 # Prepare workspace
 WORKDIR ${HOME}
