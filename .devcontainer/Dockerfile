@@ -38,10 +38,11 @@ RUN git clone --depth 1 https://github.com/openmc-dev/openmc.git \
 RUN cd openmc && pip install .
 
 
+
 ############################################
 # Stage 2 — Runtime Dev Container Image
 ############################################
-FROM mcr.microsoft.com/devcontainers/base:bookworm
+FROM mcr.microsoft.com/devcontainers/python:3.12
 
 ARG NB_USER=vscode
 ARG NB_UID=1000
@@ -52,11 +53,7 @@ ENV USER=${NB_USER} \
     PATH="/opt/venv/bin:${PATH}" \
     LD_LIBRARY_PATH="/usr/local/lib:${LD_LIBRARY_PATH}"
 
-# Install runtime dependencies + SciPy build deps
 RUN apt-get update && apt-get install -y --no-install-recommends \
-    python3.12 \
-    python3.12-venv \
-    python3-pip \
     git \
     cmake \
     gfortran \
@@ -72,6 +69,7 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     wget \
     ca-certificates \
     && apt-get clean && rm -rf /var/lib/apt/lists/*
+
 
 ############################################
 # Python venv + Scientific Stack
