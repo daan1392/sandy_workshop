@@ -89,9 +89,6 @@ COPY --from=builder /NJOY2016/build/libnjoy.so /usr/local/lib/
 
 # Prepare workspace
 WORKDIR ${HOME}
-COPY --chown=${NB_UID}:${NB_UID} Datalabs/ ${HOME}/Datalabs/
-COPY --chown=${NB_UID}:${NB_UID} Extra/ ${HOME}/Extra/
-COPY --chown=${NB_UID}:${NB_UID} data/ ${HOME}/data/
 
 # Ensure permissions
 RUN chown -R ${NB_UID}:${NB_UID} /opt/venv ${HOME}
