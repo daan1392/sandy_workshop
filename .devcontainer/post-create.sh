@@ -8,11 +8,14 @@ mkdir -p $HOME/data
 
 # Download OpenMC cross sections (optional)
 echo "📦 Downloading ENDF/B-VIII.0 HDF5 cross sections..."
-wget -q https://openmc.org/benchmarks/cross_sections/endfb80_hdf5.tar.gz -O $HOME/data/endfb80.tar.gz
+wget -q https://anl.box.com/shared/static/fmcr8zoox1t6um0rwb2iw1nz72xue8ol.xz -O $HOME/data/endfb80_hdf5.xz || echo "⚠ Failed to download cross sections, skipping"
 
-echo "📦 Extracting cross sections..."
-tar -xf $HOME/data/endfb80.tar.gz -C $HOME/data/
-rm $HOME/data/endfb80.tar.gz
+# Extract only if the file exists
+if [ -f "$HOME/data/endfb80_hdf5.xz" ]; then
+    echo "📦 Extracting cross sections..."
+    tar -xf $HOME/data/endfb80_hdf5.xz -C $HOME/data/
+    rm $HOME/data/endfb80_hdf5.xz
+fi
 
 # Set environment variable for OpenMC
 echo "export OPENMC_CROSS_SECTIONS=$HOME/data/endfb80_hdf5/cross_sections.xml" >> $HOME/.bashrc
