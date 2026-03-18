@@ -3,6 +3,7 @@
 ############################################
 FROM python:3.12-slim AS builder
 
+# Build dependencies
 RUN apt-get update && apt-get install -y --no-install-recommends \
     build-essential \
     gfortran \
@@ -12,18 +13,17 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     ca-certificates \
     && rm -rf /var/lib/apt/lists/*
 
+# Build NJOY2016
 RUN git clone --depth 1 https://github.com/njoy/NJOY2016.git \
  && cd NJOY2016 \
  && mkdir build && cd build \
  && cmake -DCMAKE_BUILD_TYPE=Release .. \
  && make -j$(nproc)
 
-
-
 ############################################
 # Stage 2 — Devcontainer
 ############################################
-FROM mcr.microsoft.com/devcontainers/base:bookworm AS dev_containers_target_stage
+FROM mcr.microsoft.com/devcontainers/base:bookworm
 
 ############################################
 # System dependencies
@@ -41,40 +41,33 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     mpich \
     wget \
     ca-certificates \
-    && rm -rf /var/lib/apt/lists/*
+    && apt-get clean && rm -rf /var/lib/apt/lists/*
 
 ############################################
 # Environment
 ############################################
 ARG NB_USER=vscode
 ARG NB_UID=1000
-
 ENV USER=${NB_USER} \
     HOME=/home/${NB_USER} \
     VIRTUAL_ENV=/opt/venv \
-    PATH="/opt/venv/bin:$PATH" \
-    LD_LIBRARY_PATH="/usr/local/lib:${LD_LIBRARY_PATH}"
+    PATH="/opt/venv/bin:$PATH"
 
 ############################################
 # Python environment
 ############################################
 RUN python3 -m venv $VIRTUAL_ENV \
  && pip install --no-cache-dir --upgrade pip setuptools wheel \
- && pip install --no-cache-dir ipykernel jupyterlab
+ && pip install --no-cache-dir ipykernel jupyterlab \
+ && pip install --no-cache-dir \
+    numpy scipy matplotlib pandas lxml h5py \
+    sandy serpentTools openmc_data_downloader openmc_depletion_plotter openmc_data
+
+# Register Sandy kernel
+RUN python3 -m ipykernel install --name "sandy" --display-name "Python (Sandy)"
 
 ############################################
-# Scientific Python stack
-############################################
-RUN pip install --no-cache-dir \
-    numpy \
-    scipy \
-    matplotlib \
-    pandas \
-    lxml \
-    h5py
-
-############################################
-# 🔬 Build + install OpenMC (working method)
+# Build + install OpenMC
 ############################################
 RUN git clone --depth 1 https://github.com/openmc-dev/openmc.git \
  && cd openmc \
@@ -91,35 +84,19 @@ RUN git clone --depth 1 https://github.com/openmc-dev/openmc.git \
  && pip install .
 
 ############################################
-# Additional tools
-############################################
-RUN pip install --no-cache-dir \
-    sandy \
-    serpentTools \
-    openmc_data_downloader \
-    openmc_depletion_plotter \
-    openmc_data
-
-############################################
-# Copy NJOY binary
+# Copy NJOY binary + shared library
 ############################################
 COPY --from=builder /NJOY2016/build/njoy /usr/local/bin/njoy
-
-RUN ldconfig
-
-############################################
-# Jupyter kernel (FIXED NAME)
-############################################
-RUN python3 -m ipykernel install \
-    --name "sandy" \
-    --display-name "Python (Sandy)"
+COPY --from=builder /NJOY2016/build/libnjoy.so /usr/local/lib/
+RUN echo "/usr/local/lib" > /etc/ld.so.conf.d/njoy.conf \
+ && ldconfig
+ENV NJOY=/usr/local/bin/njoy
 
 ############################################
 # Workspace
 ############################################
 WORKDIR /home/vscode
 RUN chown -R ${NB_UID}:${NB_UID} /opt/venv /home/vscode
-
 USER ${NB_USER}
 
 ############################################
@@ -127,5 +104,4 @@ USER ${NB_USER}
 ############################################
 ENV PORT=8888
 EXPOSE 8888
-
 CMD ["jupyter", "lab", "--notebook-dir=/home/vscode/", "--port=8888", "--no-browser", "--ip=0.0.0.0"]
