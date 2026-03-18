@@ -61,12 +61,7 @@ RUN python3 -m venv $VIRTUAL_ENV \
  && pip install --no-cache-dir ipykernel jupyterlab \
  && pip install --no-cache-dir \
     numpy scipy matplotlib pandas lxml h5py seaborn \
-    serpentTools openmc_data_downloader openmc_depletion_plotter openmc_data
-
-# Install Sandy dependencies from PyPI
-RUN pip install --no-cache-dir sandy --no-deps
-# Install Sandy beta from TestPyPI
-RUN pip install --no-cache-dir -i https://test.pypi.org/simple/ sandy==1.2.0b1 --no-deps
+    sandy serpentTools openmc_data_downloader openmc_depletion_plotter openmc_data
 
 # Register Sandy kernel
 RUN python3 -m ipykernel install --name "sandy" --display-name "Python (Sandy)"
@@ -82,19 +77,11 @@ RUN git clone --depth 1 https://github.com/openmc-dev/openmc.git \
  && cmake -DCMAKE_BUILD_TYPE=Release \
           -DOPENMC_ENABLE_MPI=OFF \
           -DOPENMC_USE_OPENMP=ON \
-          -DOPENMC_INSTALL_SCRIPTS=ON \
           .. \
  && make -j$(nproc) \
  && make install \
  && cd .. \
  && pip install .
-
-############################################
-# Fail early if openmc-ace-to-hdf5 is missing
-############################################
-RUN if [ ! -x /usr/local/bin/openmc-ace-to-hdf5 ]; then \
-        echo 'ERROR: openmc-ace-to-hdf5 was NOT installed!' >&2; exit 1; \
-    fi
 
 ############################################
 # Copy NJOY binary + shared library
@@ -105,22 +92,16 @@ RUN echo "/usr/local/lib" > /etc/ld.so.conf.d/njoy.conf \
  && ldconfig
 ENV NJOY=/usr/local/bin/njoy
 
-############################################
-# Add your Exercises and openmc_scripts
-############################################
-# They will appear inside /home/vscode/
-COPY Exercises /home/vscode/Exercises
-COPY openmc_scripts /home/vscode/openmc_scripts
+# Prepare workspace and copy files
+WORKDIR ${HOME}
+COPY --chown=${NB_UID}:${NB_UID} Exercises/ ${HOME}/Exercises/
+COPY --chown=${NB_UID}:${NB_UID} openmc_scripts/ ${HOME}/openmc_scripts/
 
 ############################################
 # Workspace
 ############################################
 WORKDIR /home/vscode
-
-# Assign proper ownership (fast because only 3 paths)
-RUN chown -R ${NB_UID}:${NB_UID} /opt/venv /home/vscode \
- && chmod -R u+rwX /home/vscode/openmc_scripts /home/vscode/Exercises
-
+RUN chown -R ${NB_UID}:${NB_UID} /opt/venv /home/vscode
 USER ${NB_USER}
 
 ############################################
