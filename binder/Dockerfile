@@ -1,10 +1,14 @@
 FROM python:3.11-slim
 
-# Install only Jupyter
-RUN pip install --no-cache-dir notebook
+# Install classic notebook (NOT notebook 7 / lab 4 stack)
+RUN pip install --no-cache-dir "notebook<7"
 
-# Set working directory
 WORKDIR /home/jovyan
 
-# Start notebook server
-CMD ["jupyter", "notebook", "--ip=0.0.0.0", "--port=8888", "--no-browser", "--allow-root"]
+CMD ["jupyter", "notebook", \
+     "--ip=0.0.0.0", \
+     "--port=8888", \
+     "--no-browser", \
+     "--allow-root", \
+     "--NotebookApp.token=''", \
+     "--NotebookApp.password=''"]
