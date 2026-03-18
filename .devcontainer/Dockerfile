@@ -13,6 +13,7 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     ca-certificates \
     && rm -rf /var/lib/apt/lists/*
 
+
 # Build NJOY2016
 RUN git clone --depth 1 https://github.com/njoy/NJOY2016.git \
  && cd NJOY2016 \
@@ -95,7 +96,7 @@ ENV NJOY=/usr/local/bin/njoy
 # Prepare workspace and copy files
 WORKDIR ${HOME}
 COPY --chown=${NB_UID}:${NB_UID} Exercises/ ${HOME}/Exercises/
-COPY --chown=${NB_UID}:${NB_UID} openmc_scripts/ ${HOME}/openmc_scripts/
+COPY --chown=${NB_UID}:${NB_UID} openmc_data/ ${HOME}/openmc_data/
 
 ############################################
 # Workspace
