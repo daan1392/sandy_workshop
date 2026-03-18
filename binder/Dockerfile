@@ -100,10 +100,10 @@ ENV PORT=8888
 EXPOSE 8888
 
 # Simpler CMD with higher timeout and iopub limit
-CMD ["jupyter", "lab",
-     "--notebook-dir=/home/vscode/",
-     "--port=8888",
-     "--no-browser",
-     "--ip=0.0.0.0",
-     "--ServerApp.iopub_data_rate_limit=1.0e10",
-     "--ServerApp.shutdown_no_activity_timeout=60"]
+CMD ["jupyter", "lab", \
+     "--notebook-dir=/home/vscode", \
+     "--port=8888", \
+     "--no-browser", \
+     "--ip=0.0.0.0", \
+     "--ServerApp.iopub_data_rate_limit=10000000", \
+     "--ServerApp.shutdown_no_activity_timeout=3600"]
