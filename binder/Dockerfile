@@ -1,17 +1,10 @@
 FROM python:3.11-slim
 
-# Install required system packages
-RUN apt-get update && apt-get install -y --no-install-recommends \
-        curl \
-        libnss3 \
-        fonts-dejavu \
-    && rm -rf /var/lib/apt/lists/*
+# Install notebook (Binder-compatible stack)
+RUN pip install --no-cache-dir notebook
 
-# Install JupyterLab (stable Binder default)
-RUN pip install --no-cache-dir jupyterlab
-
-# Binder expects this directory
+# Create the expected working directory
+RUN mkdir -p /home/jovyan
 WORKDIR /home/jovyan
 
-# Start Jupyter
-CMD ["jupyter", "lab", "--ip=0.0.0.0", "--no-browser", "--port=8888", "--allow-root"]
+# IMPORTANT: do NOT set CMD
