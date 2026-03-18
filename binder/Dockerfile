@@ -1,14 +1,17 @@
 FROM python:3.11-slim
 
-# Install classic notebook (NOT notebook 7 / lab 4 stack)
-RUN pip install --no-cache-dir "notebook<7"
+# Install required system packages
+RUN apt-get update && apt-get install -y --no-install-recommends \
+        curl \
+        libnss3 \
+        fonts-dejavu \
+    && rm -rf /var/lib/apt/lists/*
 
+# Install JupyterLab (stable Binder default)
+RUN pip install --no-cache-dir jupyterlab
+
+# Binder expects this directory
 WORKDIR /home/jovyan
 
-CMD ["jupyter", "notebook", \
-     "--ip=0.0.0.0", \
-     "--port=8888", \
-     "--no-browser", \
-     "--allow-root", \
-     "--NotebookApp.token=''", \
-     "--NotebookApp.password=''"]
+# Start Jupyter
+CMD ["jupyter", "lab", "--ip=0.0.0.0", "--no-browser", "--port=8888", "--allow-root"]
