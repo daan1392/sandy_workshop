@@ -5,12 +5,7 @@ FROM python:3.12-slim AS builder
 
 # Build dependencies
 RUN apt-get update && apt-get install -y --no-install-recommends \
-    build-essential \
-    gfortran \
-    cmake \
-    git \
-    wget \
-    ca-certificates \
+    build-essential gfortran cmake git wget ca-certificates \
     && rm -rf /var/lib/apt/lists/*
 
 # Build NJOY2016
@@ -19,6 +14,7 @@ RUN git clone --depth 1 https://github.com/njoy/NJOY2016.git \
  && mkdir build && cd build \
  && cmake -DCMAKE_BUILD_TYPE=Release .. \
  && make -j$(nproc)
+
 
 ############################################
 # Stage 2 — Devcontainer
@@ -98,6 +94,107 @@ ENV NJOY=/usr/local/bin/njoy
 WORKDIR /home/vscode
 RUN chown -R ${NB_UID}:${NB_UID} /opt/venv /home/vscode
 USER ${NB_USER}
+
+############################################
+# Jupyter
+############################################
+ENV PORT=8888
+EXPOSE 8888
+CMD ["jupyter", "lab", "--notebook-dir=/home/vscode/", "--port=8888", "--no-browser", "--ip=0.0.0.0"]
+
+
+
+
+############################################
+# Stage 2 — Devcontainer
+############################################
+FROM mcr.microsoft.com/devcontainers/base:bookworm
+
+############################################
+# System dependencies
+############################################
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    python3-pip python3-venv \
+    build-essential gfortran g++ \
+    cmake git libhdf5-dev libopenblas-dev mpich \
+    wget ca-certificates \
+    && apt-get clean && rm -rf /var/lib/apt/lists/*
+
+############################################
+# Environment
+############################################
+ARG NB_USER=vscode
+ARG NB_UID=1000
+ENV USER=${NB_USER} \
+    HOME=/home/${NB_USER} \
+    VIRTUAL_ENV=/opt/venv \
+    PATH="/opt/venv/bin:$PATH"
+
+############################################
+# Python venv (created as non-root user)
+############################################
+USER ${NB_USER}
+RUN python3 -m venv $VIRTUAL_ENV
+
+############################################
+# Python dependencies
+############################################
+RUN pip install --no-cache-dir --upgrade pip setuptools wheel \
+ && pip install --no-cache-dir \
+    ipykernel jupyterlab \
+    numpy scipy matplotlib pandas lxml h5py seaborn \
+    serpentTools openmc_data_downloader openmc_depletion_plotter openmc_data
+
+# Install Sandy dependencies first from PyPI
+RUN pip install --no-cache-dir sandy --no-deps
+
+# Install Sandy beta from TestPyPI
+RUN pip install --no-cache-dir -i https://test.pypi.org/simple/ sandy==1.2.0b1 --no-deps
+
+# Register Sandy kernel
+RUN python3 -m ipykernel install --name "sandy" --display-name "Python (Sandy)"
+
+############################################
+# Build + install OpenMC + scripts
+############################################
+USER root
+RUN git clone --depth 1 https://github.com/openmc-dev/openmc.git \
+ && cd openmc \
+ && git fetch --tags \
+ && git checkout v0.15.3 \
+ && mkdir build && cd build \
+ && cmake -DCMAKE_BUILD_TYPE=Release \
+          -DOPENMC_ENABLE_MPI=OFF \
+          -DOPENMC_USE_OPENMP=ON \
+          -DOPENMC_INSTALL_SCRIPTS=ON \
+          .. \
+ && make -j$(nproc) \
+ && make install \
+ && cd .. \
+ && pip install .
+
+############################################
+# Fail early if openmc-ace-to-hdf5 is missing
+############################################
+RUN if [ ! -x /usr/local/bin/openmc-ace-to-hdf5 ]; then \
+        echo "ERROR: openmc-ace-to-hdf5 was not installed!" && exit 1; \
+    fi
+
+############################################
+# Copy NJOY binary + shared library
+############################################
+COPY --from=builder /NJOY2016/build/njoy /usr/local/bin/njoy
+COPY --from=builder /NJOY2016/build/libnjoy.so /usr/local/lib/
+
+RUN echo "/usr/local/lib" > /etc/ld.so.conf.d/njoy.conf \
+ && ldconfig
+ENV NJOY=/usr/local/bin/njoy
+
+############################################
+# Final user & workspace
+############################################
+USER ${NB_USER}
+WORKDIR /home/vscode
 
 ############################################
 # Jupyter
