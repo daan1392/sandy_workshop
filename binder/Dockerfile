@@ -13,26 +13,33 @@ RUN git clone --depth 1 https://github.com/njoy/NJOY2016.git \
  && cmake -DCMAKE_BUILD_TYPE=Release .. \
  && make -j$(nproc)
 
-# ===== Stage 2: Minimal Binder container =====
+# ===== Stage 2: Binder environment =====
 FROM python:3.12-slim
 
-# System dependencies (runtime)
+# System dependencies
 RUN apt-get update && apt-get install -y --no-install-recommends \
-    libhdf5-dev libopenblas-dev mpich wget ca-certificates \
+    python3-pip python3-venv libhdf5-dev libopenblas-dev mpich wget ca-certificates \
     && apt-get clean && rm -rf /var/lib/apt/lists/*
 
-# ===== Copy NJOY binaries =====
+# Minimal Python + Jupyter
+RUN python3 -m venv /opt/venv \
+ && /opt/venv/bin/pip install --no-cache-dir --upgrade pip setuptools wheel \
+ && /opt/venv/bin/pip install --no-cache-dir jupyterlab ipykernel
+
+# Copy NJOY binary and library
 COPY --from=njoy-builder /NJOY2016/build/njoy /usr/local/bin/njoy
 COPY --from=njoy-builder /NJOY2016/build/libnjoy.so /usr/local/lib/
-RUN echo "/usr/local/lib" > /etc/ld.so.conf.d/njoy.conf \
- && ldconfig
+RUN echo "/usr/local/lib" > /etc/ld.so.conf.d/njoy.conf && ldconfig
 ENV NJOY=/usr/local/bin/njoy
 
-# ===== Workspace =====
+# Set PATH to use virtualenv Python
+ENV PATH="/opt/venv/bin:$PATH"
+
+# Workspace
 WORKDIR /home/jovyan
 
-# ===== Jupyter =====
-# Optional: keep Jupyter for Binder testing
-# RUN python3 -m pip install --no-cache-dir jupyterlab ipykernel
+# Expose Jupyter port
 EXPOSE 8888
-CMD ["bash"]
+
+# Launch Jupyter (minimal)
+CMD ["jupyter", "lab", "--ip=0.0.0.0", "--no-browser", "--allow-root"]
