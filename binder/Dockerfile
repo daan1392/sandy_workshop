@@ -1,102 +1,56 @@
-############################################
-# Stage 1 — Build NJOY
-############################################
-FROM python:3.12-slim AS njoy-builder
-
-RUN apt-get update && apt-get install -y --no-install-recommends \
-    build-essential gfortran cmake git wget ca-certificates \
-    && rm -rf /var/lib/apt/lists/*
-
-RUN git clone --depth 1 https://github.com/njoy/NJOY2016.git \
- && cd NJOY2016 \
- && mkdir build && cd build \
- && cmake -DCMAKE_BUILD_TYPE=Release .. \
- && make -j$(nproc)
-
-############################################
-# Stage 1b — Build OpenMC
-############################################
+# ===== Stage 1: OpenMC builder =====
 FROM python:3.12-slim AS openmc-builder
 
+# Install build dependencies
 RUN apt-get update && apt-get install -y --no-install-recommends \
-    gfortran cmake git build-essential libhdf5-dev libopenblas-dev wget ca-certificates \
+        git cmake gfortran build-essential libhdf5-dev libopenblas-dev wget ca-certificates \
     && rm -rf /var/lib/apt/lists/*
 
+# Clone and build OpenMC
 RUN git clone --depth 1 https://github.com/openmc-dev/openmc.git \
- && cd openmc \
- && git fetch --tags \
- && git checkout v0.15.3 \
- && mkdir build && cd build \
- && cmake -DCMAKE_BUILD_TYPE=Release -DOPENMC_ENABLE_MPI=OFF -DOPENMC_USE_OPENMP=ON .. \
- && make -j$(nproc)
+    && cd openmc \
+    && git fetch --tags \
+    && git checkout v0.15.3 \
+    && mkdir build && cd build \
+    && cmake -DCMAKE_BUILD_TYPE=Release -DOPENMC_ENABLE_MPI=OFF -DOPENMC_USE_OPENMP=ON .. \
+    && make -j$(nproc)
 
-# Install Python OpenMC package
+# Install OpenMC Python package
 RUN cd openmc && pip install --no-cache-dir .
 
-############################################
-# Stage 2 — Runtime Devcontainer
-############################################
-FROM python:3.12-slim
+# ===== Stage 2: Main environment =====
+FROM python:3.12-slim AS binder-env
 
-############################################
-# System dependencies (add binutils for strip)
-############################################
+# Install system packages for Python
 RUN apt-get update && apt-get install -y --no-install-recommends \
-    python3-venv python3-pip libhdf5-dev libopenblas-dev mpich wget ca-certificates binutils \
+        python3-venv python3-pip libhdf5-dev libopenblas-dev mpich wget ca-certificates \
     && apt-get clean && rm -rf /var/lib/apt/lists/*
 
-############################################
-# Environment
-############################################
-ARG NB_USER=vscode
-ARG NB_UID=1000
-ENV USER=${NB_USER} \
-    HOME=/home/${NB_USER} \
-    VIRTUAL_ENV=/opt/venv \
-    PATH="/opt/venv/bin:$PATH"
+# Create virtualenv and install basic Python packages
+RUN python3 -m venv /opt/venv \
+    && /opt/venv/bin/pip install --no-cache-dir --upgrade pip setuptools wheel \
+    && /opt/venv/bin/pip install --no-cache-dir \
+        ipykernel jupyterlab numpy scipy matplotlib pandas lxml h5py
 
-############################################
-# Python environment
-############################################
-RUN python3 -m venv $VIRTUAL_ENV \
- && pip install --no-cache-dir --upgrade pip setuptools wheel \
- && pip install --no-cache-dir ipykernel jupyterlab \
- && pip install --no-cache-dir \
-    numpy scipy matplotlib pandas lxml h5py \
-    sandy serpentTools openmc_data_downloader openmc_depletion_plotter openmc_data
+# ===== Heavy packages (commented out for fast build) =====
+# RUN /opt/venv/bin/pip install --no-cache-dir \
+#         sandy serpentTools openmc_data_downloader openmc_depletion_plotter openmc_data
 
-# Register Sandy kernel
-RUN python3 -m ipykernel install --name "sandy" --display-name "Python (Sandy)"
-
-############################################
-# Copy OpenMC binaries + Python package from builder
-############################################
+# Install OpenMC built in previous stage
 COPY --from=openmc-builder /openmc/build/bin/openmc /usr/local/bin/openmc
 COPY --from=openmc-builder /openmc/build/lib /usr/local/lib
 COPY --from=openmc-builder /usr/local/lib/python3.12/site-packages/openmc /usr/local/lib/python3.12/site-packages/openmc
 
-############################################
-# Copy NJOY binary + shared library
-############################################
-COPY --from=njoy-builder /NJOY2016/build/njoy /usr/local/bin/njoy
-COPY --from=njoy-builder /NJOY2016/build/libnjoy.so /usr/local/lib/
-RUN echo "/usr/local/lib" > /etc/ld.so.conf.d/njoy.conf && ldconfig
+# Install Jupyter kernel
+RUN /opt/venv/bin/python -m ipykernel install --name "sandy" --display-name "Python (Sandy)"
 
-############################################
-# Strip binaries to reduce size
-############################################
-RUN strip /usr/local/bin/openmc /usr/local/bin/njoy || true
+# Optional: strip binaries to reduce size
+RUN strip /usr/local/bin/openmc || true
 
-############################################
-# Workspace
-############################################
-WORKDIR /home/vscode
-USER ${NB_USER}
+# Set working directory
+WORKDIR /home/jovyan
 
-############################################
-# JupyterLab (simplified CMD for Binder)
-############################################
-ENV JUPYTER_ENABLE_LAB=yes
-ENV JUPYTER_WORKDIR=/home/vscode
+# Expose Jupyter port
+EXPOSE 8888
 
-CMD ["jupyter", "lab", "--ip=0.0.0.0", "--port=8888", "--no-browser", "--NotebookApp.token=''", "--NotebookApp.password=''"]
+CMD ["jupyter", "lab", "--ip=0.0.0.0", "--no-browser", "--allow-root"]
