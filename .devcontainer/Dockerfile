@@ -13,6 +13,7 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     ca-certificates \
     && rm -rf /var/lib/apt/lists/*
 
+
 # Build NJOY2016
 RUN git clone --depth 1 https://github.com/njoy/NJOY2016.git \
  && cd NJOY2016 \
