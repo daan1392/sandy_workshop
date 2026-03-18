@@ -96,7 +96,7 @@ ENV NJOY=/usr/local/bin/njoy
 # Prepare workspace and copy files
 WORKDIR ${HOME}
 COPY --chown=${NB_UID}:${NB_UID} Exercises/ ${HOME}/Exercises/
-COPY --chown=${NB_UID}:${NB_UID} openmc_scripts/ ${HOME}/openmc_scripts/
+COPY --chown=${NB_UID}:${NB_UID} openmc_data/ ${HOME}/openmc_data/
 
 ############################################
 # Workspace
