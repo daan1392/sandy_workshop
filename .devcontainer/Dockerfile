@@ -61,7 +61,7 @@ RUN python3 -m venv $VIRTUAL_ENV \
  && pip install --no-cache-dir --upgrade pip setuptools wheel \
  && pip install --no-cache-dir \
     ipykernel jupyterlab nbconvert \
-    numpy scipy matplotlib pandas lxml h5py seaborn \
+    numpy scipy matplotlib pandas lxml h5py seaborn papermill\
     --index-url https://test.pypi.org/simple/ \
     --extra-index-url https://pypi.org/simple \
     sandy==1.2.0b1 \
