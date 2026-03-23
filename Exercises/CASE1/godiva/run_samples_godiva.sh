@@ -31,8 +31,9 @@ run_sample() {
     echo "running openmc for SMP=${i} ..."
     openmc
 
-    if [ -f statepoint.500.h5 ]; then
-        mv statepoint.500.h5 "../statepoint.500_${i}.h5"
+    # The name is 'statepoint.100.h5' because we use 100 cycles, otherwise change it
+    if [ -f statepoint.100.h5 ]; then
+        mv statepoint.100.h5 "../statepoint.100_${i}.h5"
         cd ..
         rm -r "$DIR"
     else
