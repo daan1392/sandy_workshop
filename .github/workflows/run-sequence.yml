@@ -1,0 +1,46 @@
+name: Run Sampling Notebooks (Devcontainer + Papermill)
+
+on:
+  workflow_dispatch:
+  push:
+    paths:
+      - 'Exercises/CASE1/u234_samples/**'
+      - '.github/workflows/run-sampling.yml'
+
+jobs:
+  run-notebooks:
+    runs-on: ubuntu-latest
+
+    steps:
+    - name: Checkout repository
+      uses: actions/checkout@v4
+
+    - name: Log in to GitHub Container Registry
+      uses: docker/login-action@v3
+      with:
+        registry: ghcr.io
+        username: ${{ github.actor }}
+        password: ${{ secrets.GITHUB_TOKEN }}
+
+    - name: Pull Devcontainer Image
+      run: |
+        docker pull ghcr.io/${{ github.repository_owner }}/$(basename ${{ github.repository }}):devcontainer
+
+    - name: Run Papermill inside Devcontainer
+      run: |
+        docker run --rm \
+          -v ${{ github.workspace }}:/workspace \
+          -w /workspace/Exercises/CASE1/u234_samples \
+          ghcr.io/${{ github.repository_owner }}/$(basename ${{ github.repository }}):devcontainer \
+          bash -c "
+            papermill run_sampling_sequence.ipynb run_sampling_sequence_executed.ipynb --log-output &&
+            papermill xs_samples_analysis.ipynb xs_samples_analysis_executed.ipynb --log-output
+          "
+
+    - name: Upload executed notebooks
+      uses: actions/upload-artifact@v4
+      with:
+        name: executed-notebooks
+        path: |
+          Exercises/CASE1/u234_samples/run_sampling_sequence_executed.ipynb
+          Exercises/CASE1/u234_samples/xs_samples_analysis_executed.ipynb
