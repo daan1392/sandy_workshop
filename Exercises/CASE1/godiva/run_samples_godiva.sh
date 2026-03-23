@@ -9,25 +9,28 @@ export DATA_FOLDER
 run_sample() {
     local i=$1
 
+    # RUN ON A TEMPORARY FOLDER
     DIR="SMP${i}"
     mkdir -p "$DIR"
 
+    # COPY FILES
     cp geometry.xml "$DIR/geometry.xml"
     cp materials.xml "$DIR/materials.xml"
 
-    # Better random seed
+    # CHANGE SEED AT EVERY RUN
     SEED=$((RANDOM + $$ + i))
-
     sed "s|<seed>1</seed>|<seed>${SEED}</seed>|" settings.xml > "$DIR/settings.xml"
 
     cd "$DIR" || exit 1
 
+    # EXPORT CORRECT CROSS SECTIONS
     export OPENMC_CROSS_SECTIONS="${DATA_FOLDER}/cross_sections_${i}.xml"
     export OMP_NUM_THREADS=1   # avoid oversubscription
 
     echo "RUNNING SMP ${i}..."
     openmc    # > "log_${i}.txt" 2>&1
 
+    # MOVE OUTPUTS TO TARGET FOLDER
     if [ -f statepoint.500.h5 ]; then
         mv statepoint.500.h5 "../statepoint.500_${i}.h5"
         cd ..
