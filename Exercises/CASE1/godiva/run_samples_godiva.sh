@@ -32,14 +32,11 @@ run_sample() {
     openmc
 
     # The name is 'statepoint.100.h5' because we use 100 cycles, otherwise change it
-    if [ -f statepoint.100.h5 ]; then
-        mv statepoint.100.h5 "../statepoint.100_${i}.h5"
-        cd ..
-        rm -r "$DIR"
-    else
-        echo "Run $i failed, keeping $DIR"
-        cd ..
-    fi
+    mv -v statepoint.100.h5 "../statepoint.100_${i}.h5"
+
+    cd ..
+
+    rm -rv "$DIR"
 }
 
 export -f run_sample
