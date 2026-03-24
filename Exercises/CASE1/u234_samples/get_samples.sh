@@ -1,4 +1,5 @@
-#! /bin/sh
+#!/usr/bin/env bash
+set -euo pipefail
 
 # GENERATE SAMPLES
 python -m sandy.sampling  U234.dat --samples 20 --acer --temperatures 293.15
