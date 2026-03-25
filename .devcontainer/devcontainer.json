@@ -15,7 +15,8 @@
                 "charliermarsh.ruff"
             ],
             "settings": {
-                "python.defaultInterpreterPath": "/usr/bin/python3"
+                "python.defaultInterpreterPath": "/opt/venv/bin/python",
+                "jupyter.notebookEditor.defaultKernel": "sandy"
             }
         }
     },
@@ -26,5 +27,7 @@
         "ghcr.io/devcontainers/features/common-utils:1": {
             "configureZshAsDefaultShell": true
         }
-    }
+    },
+
+    "_postCreateCommand": "bash .devcontainer/post-create.sh"
 }
